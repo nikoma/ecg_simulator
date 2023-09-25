@@ -93,7 +93,7 @@ class Simulator:
         if ζ == 0: # remove drift
             z -= np.repeat(z[::fs], fs)
 
-        if len(features) == 1:
+        if (len(features) == 1) and (ζ > 0):
             self._lim = self.lim(z0, z[int(fs*self.fe['RR'])], ζ, self.fe['RR'])
 
         return t, θ, ρ, z
