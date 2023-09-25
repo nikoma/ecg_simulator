@@ -9,7 +9,7 @@ $$f = \sum_{i=0}^{M-1} g_i $$
 where $g_i = a_i  \exp (-{v_i}^2/2)$ , $v_i = (\bullet -\mu_i)/\sigma_i$ and $M=5$.
 
 The ODE system is solved on polar coordinates:
-$$\dot{z} = \sum_{i\in\Gamma} \dot{g}_i(\theta\mod{2\pi}) - \zeta z $$
+$$\dot{z} = \sum_{i\in\Gamma} \dot{g}_i(\theta\mod{2\pi}) - \zeta z + A \sin 2 \pi f t $$
 where $\dot{\theta} = \omega$ and $\dot{\rho} = \rho (1 - \rho)$.
 
 ### Usage
