@@ -71,7 +71,7 @@ class Simulator:
     
     def solve(self, fs: int, ζ: float, features: Tuple[BeatFeatures], N: int = 1, resp: Tuple[float, float] = None):
 
-        self.ζ = ζ
+        self.ζ = ζ if ζ is not None else 0.
         self.N = N
         self.features = repeater(features, repeat=N)
         self.fe = next(self.features)
@@ -90,7 +90,7 @@ class Simulator:
             max_step=1./fs
         )['y']
         
-        if ζ == 0: # remove drift
+        if self.ζ is None: # remove drift
             z -= np.repeat(z[::fs], fs)
 
         if (len(features) == 1) and (ζ > 0):
