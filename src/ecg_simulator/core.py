@@ -69,7 +69,7 @@ class Simulator:
             self.ζ * z + (A*wr)*np.sin(wr*t)
         ]
     
-    def solve(self, fs: float, ζ: float, features: Tuple[BeatFeatures], N: int = 1, resp: Tuple[float, float] = None):
+    def solve(self, fs: int, ζ: float, features: Tuple[BeatFeatures], N: int = 1, resp: Tuple[float, float] = None):
 
         self.ζ = ζ
         self.N = N
