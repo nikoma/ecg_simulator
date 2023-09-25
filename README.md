@@ -33,7 +33,7 @@ sim = Simulator() # create the simulator
 # then, run the solver
 t, θ, ρ, z = sim.solve(
     fs=512., # sampling frequency
-    ζ=.1, # dumping factor
+    ζ=.1, # damping factor
     features=fes, # features
     N=8 # repetead beats
 )
@@ -90,11 +90,11 @@ In all cases $\zeta = .1$ and the noise has $\beta = 2$ & $SNR = 4$.
 
 <img src="figs/stat.png" alt="drawing" width=""/>
 
-##### Dumping effect and convergence
+##### Damping effect and convergence
 
 If `BeatFeature` list has only one item, after `solve` method you can get the convergence limit from `._lim` attribute
 
-<img src="figs/dumping.png" alt="drawing" width=""/>
+<img src="figs/damping.png" alt="drawing" width=""/>
 
 ##### Case with respiration drift (noiseless & noisy)
 
