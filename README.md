@@ -2,7 +2,7 @@
 
 ECG Simulator based on ECGSYN which was originally publish in [A dynamical model for generating synthetic electrocardiogram signals](https://ieeexplore.ieee.org/document/1186732). 
 
-In this project, the implementation ignores the LF/HF ratio and the respiration drift but includes tools to add noise & feature variability to obtain realistic ECGs.
+In this project, the implementation ignores the LF/HF ratio but includes tools to add noise & feature variability to obtain realistic ECGs.
 
 The model is a sum of Gaussian functions:
 $$f = \sum_{i=0}^{M-1} g_i $$
