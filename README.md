@@ -95,3 +95,7 @@ In all cases $\zeta = .1$ and the noise has $\beta = 2$ & $SNR = 4$.
 If `BeatFeature` list has only one item, after `solve` method you can get the convergence limit from `._lim` attribute
 
 <img src="figs/dumping.png" alt="drawing" width=""/>
+
+##### Case with respiration drift (noiseless & noisy)
+
+<img src="figs/resp.png" alt="drawing" width=""/>

@@ -46,8 +46,11 @@ class Simulator:
     def __init__(self) -> None:
         pass 
 
-    def system(self, t, p):
+    def system(self, t, p, resp: Tuple[float, float] = (0., 0.)):
         θ, ρ, z = p
+
+        A, fr = resp 
+        wr = 2*np.pi*fr
 
         # beat selector
         if t >= self.acc:
@@ -63,10 +66,10 @@ class Simulator:
             dgdt(p, ω, self.fe['R']) + 
             dgdt(p, ω, self.fe['S']) + 
             dgdt(p, ω, self.fe['T']) -
-            self.ζ * z
+            self.ζ * z + (A*wr)*np.sin(wr*t)
         ]
     
-    def solve(self, fs: float, ζ: float, features: Tuple[BeatFeatures], N: int = 1):
+    def solve(self, fs: float, ζ: float, features: Tuple[BeatFeatures], N: int = 1, resp: Tuple[float, float] = None):
 
         self.ζ = ζ
         self.N = N
@@ -79,7 +82,7 @@ class Simulator:
 
         θ0, ρ0, z0 = 0., 1., 0.
         θ, ρ, z = sp.integrate.solve_ivp(
-            self.system,
+            self.system if resp is None else lambda t, p: self.system(t, p, resp=resp),
             t_span = (t[0], t[-1]),
             y0 = [θ0, ρ0, z0], 
             t_eval = t,
