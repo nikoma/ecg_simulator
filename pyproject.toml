@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ecg_simulator"
+version = "0.0.1"
+authors = [
+  { name="Santiago Federico Caracciolo", email="santiago.caracciolo@gmail.com" },
+]
+description = "ECG simulator based on ECGSYN model with tools to add noise & features variability"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+  "scipy",
+  "colorednoise"
+]
