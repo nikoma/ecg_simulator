@@ -112,7 +112,7 @@ class Simulator:
             z += noise
         else:
             return z + noise
-
+        
 
 def random_features(mfes: BeatFeatures, sfes: BeatFeatures, N: int=100, seed: int = None):
     rng = np.random.default_rng(seed=seed)
@@ -167,4 +167,48 @@ class FeatureEditor:
                 v['σ'] = fun(v['σ'])
             else:
                 v[feature] = fun(v[feature])
-            
+
+def tachogram_features(mfes: BeatFeatures, rr: np.ndarray, fs: int):
+    fes = []
+    for rri in rr[::fs]:
+        fe = copy.deepcopy(mfes)
+        fe['RR'] = rri
+        fes.append(fe)
+    return fes
+
+def tachogram(f_params: Tuple[float, float, float, float] = (.1, .01, .25, .01, .5), t_params: Tuple[float, float] = (1., .1), Nb: int = 100, fs: int = 1024, seed=None, scaling: bool = True):
+    """
+    f_params: f1, c1, f2, c2, ratio
+    t_params: rr_mean, rr_std
+    Nb: amounf of beats
+    """
+    rng = np.random.default_rng(seed=seed)
+    N = Nb * int(fs * t_params[0]) # time samples
+    M = N // 2 + 1 # freq samples
+
+    d = BiModal()
+    f = np.linspace(0, fs/2, num=M)
+    psd = d.pdf(f, *f_params)
+
+    U = rng.uniform(0, 2*np.pi, size=M)
+    S = np.sqrt(M*fs*psd) * np.exp(-1j*U)
+    series = np.fft.irfft(S, n=N)
+
+    t = np.arange(0, N) / fs
+    rr = t_params[0] + series * t_params[1]/np.std(series) if scaling else series
+
+    return (t, rr), (f, psd)
+
+class BiModal(sp.stats.rv_continuous):
+    "Bimodal Gaussian distribution"
+    def __init__(self):
+        super().__init__(
+            momtype=0,
+            name='bimodal',
+        )
+
+    def _pdf(self, x, loc1, scale1, loc2, scale2, ratio):
+        return ( ratio * sp.stats.norm.pdf(x, loc1, scale1) + sp.stats.norm.pdf(x, loc2, scale2) ) / (1. + ratio)
+    
+    def _cdf(self, x, loc1, scale1, loc2, scale2, ratio):
+        return ( ratio * sp.stats.norm.cdf(x, loc1, scale1) + sp.stats.norm.cdf(x, loc2, scale2) ) / (1. + ratio)
