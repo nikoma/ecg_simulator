@@ -2,7 +2,7 @@
 
 ECG Simulator based on ECGSYN which was originally publish in [A dynamical model for generating synthetic electrocardiogram signals](https://ieeexplore.ieee.org/document/1186732). 
 
-In this project, the implementation ignores the LF/HF ratio but includes tools to add noise & feature variability to obtain realistic ECGs.
+In this project, the implementation includes tools to add noise & feature variability to obtain realistic ECGs.
 
 The model is a sum of Gaussian functions:
 $$f = \sum_{i=0}^{M-1} g_i $$
@@ -79,6 +79,24 @@ editor.model['RR'] = .05 # set the std of RR.
 # std_fes = editor.model
 ```
 
+To compute a RR tachogram,
+
+```python
+from ecg_simulator import tachogram, tachogram_features
+
+rr = tachogram(
+    (.1, .01, .25, .01, .5), # f1, c1, f2, c2, ratio
+    (1., .05,), # RR mean, RR std
+    Nb=100, # amount of beats, 
+    fs=1024, # sampling frequency
+    scaling=True # return scaled series according t_params
+)
+
+# then build the features ...
+fes = tachogram_features(fes[0], rr, fs)
+
+```
+
 #### Examples
 In all cases $\zeta = .1$ and the noise has $\beta = 2$ & $SNR = 4$.
 
@@ -99,3 +117,18 @@ If `BeatFeature` list has only one item, after `solve` method you can get the co
 ##### Case with respiration drift (noiseless & noisy)
 
 <img src="figs/resp.png" alt="drawing" width=""/>
+
+##### Example of PSD and RR tachogram
+
+PSD parameters: $f_1=.1$, $c_1=c_2=.05$, $f_2=.25$, LF/HF ratio $.5$
+<img src="figs/psd.png" alt="drawing" width="400"/>
+
+RR tachgram for the above PSD with scaling for $RR$ mean $1.$ and $RR$ deviation equal to $.05$. The step plot shows the RR series that apply on the simulation.
+
+<img src="figs/rr.png" alt="drawing" width=""/>
+
+##### Case w/RR process (noiseless \& noisy)
+
+PSD parameters equal to above and scaling $1.$ and $.2$ for RR parameters.
+
+<img src="figs/rrsim.png" alt="drawing" width=""/>
