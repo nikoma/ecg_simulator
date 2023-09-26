@@ -120,7 +120,8 @@ If `BeatFeature` list has only one item, after `solve` method you can get the co
 
 ##### Example of PSD and RR tachogram
 
-PSD parameters: $f_1=.1$, $c_1=c_2=.05$, $f_2=.25$, LF/HF ratio $.5$
+PSD parameters: $f_1=.1$, $c_1=c_2=.01$, $f_2=.25$, LF/HF ratio $.5$
+
 <img src="figs/psd.png" alt="drawing" width="400"/>
 
 RR tachgram for the above PSD with scaling for $RR$ mean $1.$ and $RR$ deviation equal to $.05$. The step plot shows the RR series that apply on the simulation.
