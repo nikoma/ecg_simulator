@@ -46,7 +46,7 @@ class Simulator:
     def __init__(self) -> None:
         pass 
 
-    def system(self, t, p, resp: Tuple[float, float] = (0., 0.)):
+    def system(self, t, p, resp: Tuple[float] = (0., 0.)):
         θ, ρ, z = p
 
         A, fr = resp 
@@ -69,7 +69,7 @@ class Simulator:
             self.ζ * z + (A*wr)*np.sin(wr*t)
         ]
     
-    def solve(self, fs: int, ζ: float, features: Tuple[BeatFeatures], N: int = 1, resp: Tuple[float, float] = None):
+    def solve(self, fs: int, ζ: float, features: Tuple[BeatFeatures], N: int = 1, resp: Tuple[float] = None):
 
         self.ζ = ζ if ζ is not None else 0.
         self.N = N
@@ -176,12 +176,14 @@ def tachogram_features(mfes: BeatFeatures, rr: np.ndarray, fs: int):
         fes.append(fe)
     return fes
 
-def tachogram(f_params: Tuple[float, float, float, float] = (.1, .01, .25, .01, .5), t_params: Tuple[float, float] = (1., .1), Nb: int = 100, fs: int = 1024, seed=None, scaling: bool = True):
+def tachogram(f_params: Tuple[float] = (.1, .01, .25, .01, .5), t_params: Tuple[float] = (1., .1), Nb: int = 100, fs: int = 1024, seed=None, scaling: bool = True):
     """
     f_params: f1, c1, f2, c2, ratio
     t_params: rr_mean, rr_std
     Nb: amounf of beats
     """
+    rr_mean, rr_std = t_params
+
     rng = np.random.default_rng(seed=seed)
     N = Nb * int(fs * t_params[0]) # time samples
     M = N // 2 + 1 # freq samples
@@ -195,12 +197,12 @@ def tachogram(f_params: Tuple[float, float, float, float] = (.1, .01, .25, .01, 
     series = np.fft.irfft(S, n=N)
 
     t = np.arange(0, N) / fs
-    rr = t_params[0] + series * t_params[1]/np.std(series) if scaling else series
+    rr = rr_mean + series * rr_std/np.std(series) if scaling else series
 
     return (t, rr), (f, psd)
 
 class BiModal(sp.stats.rv_continuous):
-    "Bimodal Gaussian distribution"
+    """Bimodal Gaussian distribution"""
     def __init__(self):
         super().__init__(
             momtype=0,
