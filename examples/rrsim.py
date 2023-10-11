@@ -19,8 +19,8 @@ t_params = 1., .2
 
 fes = tachogram_features(fe, rr, fs)
 
-sim = Simulator()
-t, θ, ρ, z = sim.solve(fs=fs, ζ=.1, features=fes)
+sim = Simulator(fs=fs, ζ=.1)
+t, θ, ρ, z = sim.solve(features=fes)
 
 p = Plotter(_2d=True, nrows=2, ncols=1, figsize = (12.,5.))
 p.axs[0].plot(t, z, '-k')

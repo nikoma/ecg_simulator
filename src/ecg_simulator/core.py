@@ -43,14 +43,15 @@ def repeater(iterable: Tuple, repeat: int = 1):
 
 class Simulator:
 
-    def __init__(self) -> None:
-        pass 
+    def __init__(self, fs: int, ζ: float = 0., resp: Tuple[float] = (0., 0.)) -> None:
+        Ar, fr = resp 
+        self.wr = 2*np.pi*fr
+        self.cr = Ar*self.wr
+        self.fs = fs
+        self.ζ = ζ
 
-    def system(self, t, p, resp: Tuple[float] = (0., 0.)):
+    def system(self, t, p):
         θ, ρ, z = p
-
-        A, fr = resp 
-        wr = 2*np.pi*fr
 
         # beat selector
         if t >= self.acc:
@@ -66,54 +67,70 @@ class Simulator:
             dgdt(p, ω, self.fe['R']) + 
             dgdt(p, ω, self.fe['S']) + 
             dgdt(p, ω, self.fe['T']) -
-            self.ζ * z + (A*wr)*np.sin(wr*t)
+            self.ζ * z + self.cr*np.sin(self.wr*t)
         ]
     
-    def solve(self, fs: int, ζ: float, features: Tuple[BeatFeatures], N: int = 1, resp: Tuple[float] = None):
+    def solve(self, features: Tuple[BeatFeatures]):
 
-        self.ζ = ζ if ζ is not None else 0.
-        self.N = N
-        self.features = repeater(features, repeat=N)
+        self.features = iter(features)
         self.fe = next(self.features)
         self.acc = self.fe['RR']
 
-        tend = np.sum([fe['RR'] * N for fe in features])
-        t = np.arange(start=0, stop=tend, step=1./fs)
+        tend = np.sum([fe['RR'] for fe in features])
+        t = np.arange(start=0, stop=tend, step=1./self.fs)
 
         θ0, ρ0, z0 = 0., 1., 0.
         θ, ρ, z = sp.integrate.solve_ivp(
-            self.system if resp is None else lambda t, p: self.system(t, p, resp=resp),
+            self.system,
             t_span = (t[0], t[-1]),
             y0 = [θ0, ρ0, z0], 
             t_eval = t,
             method='RK45',
-            max_step=1./fs
+            max_step=1./self.fs
         )['y']
-        
-        if self.ζ is None: # remove drift
-            z -= np.repeat(z[::fs], fs)
-
-        if (len(features) == 1) and (ζ > 0):
-            self._lim = self.lim(z0, z[int(fs*self.fe['RR'])], ζ, self.fe['RR'])
 
         return t, θ, ρ, z
+    
+    def get_exp_lims(self, z: np.ndarray, features: Tuple[BeatFeatures]):
+        if self.ζ == 0.:
+            raise ValueError('ζ would be greather than zero.')
+        
+        RR = features[0]['RR']
+        if not all([ RR == fe['RR'] for fe in features]): 
+            raise ValueError('All RRs must be equal.')
+        
+        z0 = 0.
+        return self.lim(z0, z[int(self.fs*self.fe['RR'])], self.ζ, self.fe['RR'])
 
+    def remove_drift(self, z: np.ndarray, in_place=False):
+        if self.ζ != 0.: raise ValueError('ζ would be zero.')
+        drift = np.repeat(z[::self.fs], self.fs)
+        if in_place:
+            z -= drift
+        else:
+            return z - drift
+        
     @staticmethod
     def lim(z0: float, zRR: float, ζ: float, RR: float):
-        return (zRR-z0) / (1 - np.exp(-RR*ζ)) , 4./ζ
+        return  4./ζ, (zRR-z0) / (1 - np.exp(-RR*ζ))
     
     @staticmethod
     def add_noise(z: np.ndarray, beta: float, snr: float, seed=None, in_place=False):
         noise = cn.powerlaw_psd_gaussian(beta, z.size, random_state=seed)
+        power_n = np.mean(noise**2)
         power_s = np.mean(z**2)
-        power_n = power_s * np.power(10., -snr/10.)
-        noise *= np.sqrt(power_n)
+        noise *= np.sqrt(power_s*np.power(10., -snr/10.)/power_n)
         if in_place:
             z += noise
         else:
             return z + noise
         
-
+    @staticmethod
+    def snr(s: np.ndarray, n: np.ndarray):
+        power_n = np.mean(n**2)
+        power_s = np.mean(s**2)
+        return 10*np.log10(power_s/power_n)
+    
 def random_features(mfes: BeatFeatures, sfes: BeatFeatures, N: int=100, seed: int = None):
     rng = np.random.default_rng(seed=seed)
     μs = vectorize(mfes)

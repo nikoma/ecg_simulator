@@ -6,7 +6,7 @@ filename = Path(__file__).stem
 fs, Nb = 256, 200
 f_params = .1, .01, .25, .01, .5
 t_params = 1., .05
-(t, rr), (f, psd) = tachogram(f_params, t_params, Nb=Nb, fs=fs, scaling=True)
+(t, rr), (f, psd) = tachogram(f_params, t_params, Nb=Nb, fs=fs, scaling=True, seed=3)
 
 bounds = [
     (t_params[0] - 2* t_params[1], t_params[0] + 2* t_params[1]),
