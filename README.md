@@ -14,28 +14,28 @@ where $\dot{\theta} = \omega$ and $\dot{\rho} = \rho (1 - \rho)$.
 
 ### Usage
 ```python
-from ecg_simulator import BeatFeatures, Simulator
+from ecg_simulator import BeatFeatures, Simulator, repeater
 
-# create a list with the features of each beat to simulate. In this case, only one beat.
-fes = [ 
-    BeatFeatures(
+# create a list with the features of each beat to simulate
+fe = BeatFeatures(
         P=FunFeatures(a=.2, μ=np.pi*2/3., σ=.25),
         Q=FunFeatures(a=-.2, μ=np.pi*11/12., σ=.1),
         R=FunFeatures(a=1.2, μ=np.pi*1., σ=.1),
         S=FunFeatures(a=-.3, μ=np.pi*13/12., σ=.1),
         T=FunFeatures(a=.4, μ=np.pi*3/2., σ=.4),
         RR=1.
-    )
-]
+)
+fes = list(repeater([fe], repeat=10))
 
-sim = Simulator() # create the simulator
+sim = Simulator(
+    fs=512., # sampling frequency
+    ζ=.1, # damping factor
+    resp = (0., 0.) # respiration baseline (amplitud, frequency)
+) # create the simulator
 
 # then, run the solver
 t, θ, ρ, z = sim.solve(
-    fs=512., # sampling frequency
-    ζ=.1, # damping factor
-    features=fes, # features
-    N=8 # repetead beats
+    features=fes, # ten equal features
 )
 
 ```
@@ -93,7 +93,7 @@ rr = tachogram(
 )
 
 # then build the features ...
-fes = tachogram_features(fes[0], rr, fs)
+fes = tachogram_features(fe, rr, fs)
 
 ```
 
