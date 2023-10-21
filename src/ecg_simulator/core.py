@@ -4,6 +4,7 @@ import numpy as np
 import scipy as sp
 from typing import Callable, Literal, TypedDict, Tuple
 import colorednoise as cn 
+from abc import ABC, abstractmethod
 
 class FunFeatures(TypedDict):
     a: float # V   
@@ -11,37 +12,15 @@ class FunFeatures(TypedDict):
     σ: float # rad
 
 class BeatFeatures(TypedDict):
-    P: FunFeatures
-    Q: FunFeatures
-    R: FunFeatures
-    S: FunFeatures
-    T: FunFeatures
+    Waves: TypedDict
     RR: float
-
-def v(θ, fe: FunFeatures):
-    return ( θ % (2*np.pi) - fe['μ'] ) / fe['σ']
-
-def g(v, fe: FunFeatures):
-    return fe['a'] * np.exp( -.5 * v**2 )
-
-def dgdt(p, ω, fe: FunFeatures):
-    θ, _, _ = p
-    vi = v(θ, fe)
-    return - g(vi, fe) * vi * ω / fe['σ']
-
-def model(θ, fe: BeatFeatures):
-    return  g(v(θ, fe['P']), fe['P']) + \
-            g(v(θ, fe['Q']), fe['Q']) + \
-            g(v(θ, fe['R']), fe['R']) + \
-            g(v(θ, fe['S']), fe['S']) + \
-            g(v(θ, fe['T']), fe['T'])
 
 def repeater(iterable: Tuple, repeat: int = 1):
     for item in iter(iterable):
         for _ in range(repeat):
             yield item
 
-class Simulator:
+class AbstractSimulator(ABC):
 
     def __init__(self, fs: int, ζ: float = 0., resp: Tuple[float] = (0., 0.)) -> None:
         Ar, fr = resp 
@@ -50,27 +29,28 @@ class Simulator:
         self.fs = fs
         self.ζ = ζ
 
-    def system(self, t, p):
-        θ, ρ, z = p
-
-        # beat selector
+    def beat_selector(self, t):
         if t >= self.acc:
             self.fe = next(self.features)
             self.acc += self.fe['RR']
 
+    @abstractmethod
+    def dfdt(self, p, ω):
+        raise NotImplementedError
+    
+    def system(self, t, p):
+        θ, ρ, z = p
+        self.beat_selector(t)
         ω = 2*np.pi / self.fe['RR']
         return [ 
             ω,
             (1. - ρ ) * ρ,
-            dgdt(p, ω, self.fe['P']) + 
-            dgdt(p, ω, self.fe['Q']) + 
-            dgdt(p, ω, self.fe['R']) + 
-            dgdt(p, ω, self.fe['S']) + 
-            dgdt(p, ω, self.fe['T']) -
-            self.ζ * z + self.cr*np.sin(self.wr*t)
+            self.dfdt(p, ω) - self.ζ * z + self.cr*np.cos(self.wr*t)
         ]
     
-    def solve(self, features: Tuple[BeatFeatures]):
+    def solve(self, features: Tuple[BeatFeatures], init_values: Tuple[float] = (0., 1., 0.)):
+
+        θ0, ρ0, z0 = init_values
 
         self.features = iter(features)
         self.fe = next(self.features)
@@ -79,7 +59,6 @@ class Simulator:
         tend = np.sum([fe['RR'] for fe in features])
         t = np.arange(start=0, stop=tend, step=1./self.fs)
 
-        θ0, ρ0, z0 = 0., 1., 0.
         θ, ρ, z = sp.integrate.solve_ivp(
             self.system,
             t_span = (t[0], t[-1]),
@@ -135,27 +114,25 @@ def random_features(mfes: BeatFeatures, sfes: BeatFeatures, N: int=100, seed: in
     rng = np.random.default_rng(seed=seed)
     μs = vectorize(mfes)
     σs = vectorize(sfes)
-    vs = rng.normal(μs, σs, size=(N, 3 * ( len(mfes) - 1 ) + 1))
-    return [ modelize(l) for l in vs ]
+    vs = rng.normal(μs, σs, size=(N, 3*len(mfes['Waves']) + 1))
+    return [ modelize(l, mfes['Waves']) for l in vs ]
 
 def vectorize(fes: BeatFeatures) -> Tuple:
     vec = [ fes['RR'] ]
-    vec += fes['P'].values()
-    vec += fes['Q'].values()
-    vec += fes['R'].values()
-    vec += fes['S'].values()
-    vec += fes['T'].values()
+    for k, v in fes['Waves'].items():
+        vec += v.values()
     return vec
 
+def modelize(l: Tuple, WavesTemplate: TypedDict) -> BeatFeatures:
 
-def modelize(l: Tuple) -> BeatFeatures:
+    i = 0
+    for k in WavesTemplate.keys():
+        WavesTemplate[k] = FunFeatures(a=l[i+1], μ=l[i+2], σ=l[i+3])
+        i += 3
+
     return BeatFeatures(
+        Waves=WavesTemplate,
         RR=l[0],
-        P=FunFeatures(a=l[1], μ=l[2], σ=l[3]),
-        Q=FunFeatures(a=l[4], μ=l[5], σ=l[6]),
-        R=FunFeatures(a=l[7], μ=l[8], σ=l[9]),
-        S=FunFeatures(a=l[10], μ=l[11], σ=l[12]),
-        T=FunFeatures(a=l[13], μ=l[14], σ=l[15])
     )
 
 class FeatureEditor:
@@ -175,9 +152,7 @@ class FeatureEditor:
         self.set(lambda x: value, feature=feature)
 
     def set(self, fun: Callable, feature: Literal['a', 'μ', 'σ'] = None):
-        for k, v in self.model.items():
-            if k == 'RR':
-                continue
+        for k, v in self.model['Waves'].items():
             if feature is None:
                 v['a'] = fun(v['a'])
                 v['μ'] = fun(v['μ'])
@@ -217,7 +192,6 @@ def tachogram(f_params: Tuple[float] = (.1, .01, .25, .01, .5), t_params: Tuple[
     rr = rr_mean + series * rr_std/np.std(series) if scaling else series
 
     return (t, rr), (f, psd)
-
 class BiModal(sp.stats.rv_continuous):
     """Bimodal Gaussian distribution"""
     def __init__(self):

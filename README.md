@@ -2,40 +2,37 @@
 
 ECG Simulator based on ECGSYN which was originally publish in [A dynamical model for generating synthetic electrocardiogram signals](https://ieeexplore.ieee.org/document/1186732). 
 
-In this project, the implementation includes tools to add noise & feature variability to obtain realistic ECGs.
+The simulator is agnostic to the model and includes tools to add noise & feature variability to obtain realistic ECGs. 
 
-The model is a sum of Gaussian functions:
-$$f = \sum_{i=0}^{M-1} g_i $$
-where $g_i = a_i  \exp (-{v_i}^2/2)$ , $v_i = (\bullet -\mu_i)/\sigma_i$ and $M=5$.
-
-The ODE system is solved on polar coordinates:
-$$\dot{z} = \sum_{i\in\Gamma} \dot{g}_i(\theta\mod{2\pi}) - \zeta z + A \sin 2 \pi f t $$
+Assuming a model $f$ (see [ECG Models](https://github.com/sfcaracciolo/ecg_models/)), the following ODE system is solved on polar coordinates:
+$$\dot{z} = \dot{f}(\theta\mod{2\pi}) - \zeta z + A_r \omega_r \cos (\omega_r t) $$
 where $\dot{\theta} = \omega$ and $\dot{\rho} = \rho (1 - \rho)$.
 
 ### Usage
 ```python
-from ecg_simulator import BeatFeatures, Simulator, repeater
+from ecg_simulator import AbstractSimulator, repeater
+from ecg_models import Human
+import numpy as np 
 
-# create a list with the features of each beat to simulate
-fe = BeatFeatures(
-        P=FunFeatures(a=.2, μ=np.pi*2/3., σ=.25),
-        Q=FunFeatures(a=-.2, μ=np.pi*11/12., σ=.1),
-        R=FunFeatures(a=1.2, μ=np.pi*1., σ=.1),
-        S=FunFeatures(a=-.3, μ=np.pi*13/12., σ=.1),
-        T=FunFeatures(a=.4, μ=np.pi*3/2., σ=.4),
-        RR=1.
-)
-fes = list(repeater([fe], repeat=10))
+# make a list with a beat feature for each beat. 
+# In this case, a Human model from ECG Models repo.
+fes = list(repeater([Human.example_beat], repeat=10))
 
+# Build the Simulator with the derivate of the model.
+class Simulator(AbstractSimulator):
+    def dfdt(self, p, ω):
+        return Human.dfdt(p, ω, self.fe)
+    
+# make an instance 
 sim = Simulator(
     fs=512., # sampling frequency
     ζ=.1, # damping factor
-    resp = (0., 0.) # respiration baseline (amplitud, frequency)
-) # create the simulator
+    resp =(.15, .75) # respiration baseline (amplitud, frequency)
+) 
 
 # then, run the solver
 t, θ, ρ, z = sim.solve(
-    features=fes, # ten equal features
+    features=fes,
 )
 
 ```
@@ -45,11 +42,13 @@ To add coloured noise as $(1/f)^\beta$ to the ECG, simply
 ```python
 sim.add_noise(
     z, # ecg
-    beta=0, # exponent
-    snr=10, # signal-to-noise ratio
+    beta=2, # exponent
+    snr=4, # signal-to-noise ratio
     in_place=True # adding noise in z
 )
 ```
+
+<img src="figs/usage.png" alt="drawing" width=""/>
 
 To add variability in the features ```random_features``` help to build the features list, e.g., 
 
@@ -97,28 +96,13 @@ fes = tachogram_features(fe, rr, fs)
 
 ```
 
-#### Examples
-In all cases $\zeta = .1$ and the noise has $\beta = 2$ & $SNR = 4$.
+### Damping effect and convergence
 
-##### Case w/o variability in the features (noiseless & noisy)
-
-<img src="figs/single.png" alt="drawing" width=""/>
-
-##### Case with variability in the features (noiseless & noisy)
-
-<img src="figs/stat.png" alt="drawing" width=""/>
-
-##### Damping effect and convergence
-
-If `BeatFeature` list has only one item, after `solve` method you can get the convergence limit from `._lim` attribute
+If `BeatFeature` list has only one item, after `solve` method you can get the convergence limit from `sim.get_exp_lims(z, fes)` attribute
 
 <img src="figs/damping.png" alt="drawing" width=""/>
 
-##### Case with respiration drift (noiseless & noisy)
-
-<img src="figs/resp.png" alt="drawing" width=""/>
-
-##### Example of PSD and RR tachogram
+### PSD and RR tachogram
 
 PSD parameters: $f_1=.1$, $c_1=c_2=.01$, $f_2=.25$, LF/HF ratio $.5$
 
@@ -127,9 +111,3 @@ PSD parameters: $f_1=.1$, $c_1=c_2=.01$, $f_2=.25$, LF/HF ratio $.5$
 RR tachgram for the above PSD with scaling for $RR$ mean $1.$ and $RR$ deviation equal to $.05$. The step plot shows the RR series that apply on the simulation.
 
 <img src="figs/rr.png" alt="drawing" width=""/>
-
-##### Case w/RR process (noiseless \& noisy)
-
-PSD parameters equal to above and scaling $1.$ and $.2$ for RR parameters.
-
-<img src="figs/rrsim.png" alt="drawing" width=""/>
