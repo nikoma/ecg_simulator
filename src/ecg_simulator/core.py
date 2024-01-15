@@ -5,7 +5,7 @@ from typing import Tuple
 import colorednoise as cn 
 from abc import ABC, abstractmethod
 from ecg_models.waves import  BeatFeatures
-from ecg_models.utils import  modelize, vectorize
+from ecg_models.utils import  modelize, vectorize, FeatureEditor
 
 def repeater(iterable: Tuple, repeat: int = 1):
     for item in iter(iterable):
