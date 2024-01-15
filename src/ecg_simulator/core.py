@@ -1,19 +1,11 @@
 import copy
-import json
 import numpy as np
 import scipy as sp
-from typing import Callable, Literal, TypedDict, Tuple
+from typing import Tuple
 import colorednoise as cn 
 from abc import ABC, abstractmethod
-
-class FunFeatures(TypedDict):
-    a: float # V   
-    μ: float # rad
-    σ: float # rad
-
-class BeatFeatures(TypedDict):
-    Waves: TypedDict
-    RR: float
+from ecg_models.waves import  BeatFeatures
+from ecg_models.utils import  modelize, vectorize
 
 def repeater(iterable: Tuple, repeat: int = 1):
     for item in iter(iterable):
@@ -117,52 +109,9 @@ def random_features(mfes: BeatFeatures, sfes: BeatFeatures, N: int=100, seed: in
     vs = rng.normal(μs, σs, size=(N, 3*len(mfes['Waves']) + 1))
     return [ modelize(l, mfes['Waves']) for l in vs ]
 
-def vectorize(fes: BeatFeatures) -> Tuple:
-    vec = [ fes['RR'] ]
-    for k, v in fes['Waves'].items():
-        vec += v.values()
-    return vec
-
-def modelize(l: Tuple, WavesTemplate: TypedDict) -> BeatFeatures:
-
-    i = 0
-    for k in WavesTemplate.keys():
-        WavesTemplate[k] = FunFeatures(a=l[i+1], μ=l[i+2], σ=l[i+3])
-        i += 3
-
-    return BeatFeatures(
-        Waves=WavesTemplate,
-        RR=l[0],
-    )
-
-class FeatureEditor:
-    def __init__(self, f: BeatFeatures) -> None:
-        self.model = copy.deepcopy(f)
-
-    def __str__(self) -> str:
-        return json.dumps(self.model, indent=4, ensure_ascii=False)
-    
-    def scale(self, value: float, feature: Literal['a', 'μ', 'σ'] = None):
-        self.set(lambda x: x*value, feature=feature)
-
-    def abs(self, feature: Literal['a', 'μ', 'σ'] = None):
-        self.set(abs, feature=feature)
-
-    def constant(self, value: float, feature: Literal['a', 'μ', 'σ'] = None):
-        self.set(lambda x: value, feature=feature)
-
-    def set(self, fun: Callable, feature: Literal['a', 'μ', 'σ'] = None):
-        for k, v in self.model['Waves'].items():
-            if feature is None:
-                v['a'] = fun(v['a'])
-                v['μ'] = fun(v['μ'])
-                v['σ'] = fun(v['σ'])
-            else:
-                v[feature] = fun(v[feature])
-
-def tachogram_features(mfes: BeatFeatures, rr: np.ndarray, fs: int):
+def tachogram_features(mfes: BeatFeatures, rr: np.ndarray):
     fes = []
-    for rri in rr[::fs]:
+    for rri in rr:
         fe = copy.deepcopy(mfes)
         fe['RR'] = rri
         fes.append(fe)
@@ -176,22 +125,28 @@ def tachogram(f_params: Tuple[float] = (.1, .01, .25, .01, .5), t_params: Tuple[
     """
     rr_mean, rr_std = t_params
 
-    rng = np.random.default_rng(seed=seed)
-    N = Nb * int(fs * t_params[0]) # time samples
+    Ns = int(fs * rr_mean) # mean samples by beat
+    N = Nb * Ns # time samples
     M = N // 2 + 1 # freq samples
 
     d = BiModal()
     f = np.linspace(0, fs/2, num=M)
     psd = d.pdf(f, *f_params)
 
+    rng = np.random.default_rng(seed=seed)
     U = rng.uniform(0, 2*np.pi, size=M)
     S = np.sqrt(M*fs*psd) * np.exp(-1j*U)
     series = np.fft.irfft(S, n=N)
 
-    t = np.arange(0, N) / fs
-    rr = rr_mean + series * rr_std/np.std(series) if scaling else series
+    if scaling:
+        s_std = np.std(series)
+        rr = np.full(N, rr_mean) if np.allclose(s_std, 0) else rr_mean + series * (rr_std/s_std) 
+    else:
+        rr = series
 
-    return (t, rr), (f, psd)
+    t = np.arange(N) / fs
+    return Ns, (t, rr), (f, psd)
+
 class BiModal(sp.stats.rv_continuous):
     """Bimodal Gaussian distribution"""
     def __init__(self):
