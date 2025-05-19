@@ -114,9 +114,9 @@ const caseScenarios = {
     },
     "Complete Heart Block": {
         heartRate: 40,
-        rhythm: "brady",
-        extra:{noP:true},
-        notes: "AV dissociation with slow ventricular escape rhythm."
+        rhythm: "avdissociation",
+        extra:{pRate:80},
+        notes: "AV dissociation with slow wide-complex escape rhythm."
     },
     "Atrial Fibrillation": {
         heartRate: 110,
@@ -125,25 +125,34 @@ const caseScenarios = {
     },
     "Ventricular Tachycardia": {
         heartRate: 150,
-        rhythm: "tachy",
-        extra:{wideQRS:true},
-        notes: "Fast wide-complex rhythm."
+        rhythm: "vtach",
+        notes: "Fast monomorphic wide-complex rhythm."
     },
     "Left Bundle Branch Block": {
         heartRate: 90,
         rhythm: "normal",
         extra:{wideQRS:true},
+        leadModifications:{
+            I:{qrsMorph:'broad'},
+            V5:{qrsMorph:'broad'},
+            V6:{qrsMorph:'broad'}
+        },
         notes: "Wide QRS pattern best in I, V6."
     },
     "Right Bundle Branch Block": {
         heartRate: 90,
         rhythm: "normal",
         extra:{wideQRS:true},
+        leadModifications:{
+            V1:{qrsMorph:'rsR'},
+            V2:{qrsMorph:'rsR'}
+        },
         notes: "Wide QRS with rSR' in V1-V3."
     },
     "Hyperkalemia ECG Pattern": {
         heartRate: 70,
         rhythm: "normal",
+        extra:{prDelay:0.04, wideQRS:true, withP:false},
         leadModifications:{all:{tHeight:0.15}},
         notes: "Tall peaked T waves due to hyperkalemia."
     },
@@ -185,6 +194,18 @@ function normalBeat(samples, opts={}) {
     return beat;
 }
 
+function pOnlyBeat(samples){
+    const beat=new Array(samples).fill(0);
+    for(let i=0;i<samples;i++){
+        const t=i/samples;
+        if(t>=0.1 && t<0.2){
+            const phase=(t-0.1)/0.1;
+            beat[i]+=0.15*Math.sin(Math.PI*phase);
+        }
+    }
+    return beat;
+}
+
 function generateNormalWave(hr, opts={}) {
     const beatSamples = Math.floor((60 / hr) * fs);
     const beat = normalBeat(beatSamples, opts);
@@ -201,8 +222,9 @@ function generateAfibWave(hr, opts={}) {
     const beats = Math.ceil((duration * hr) / 60) + 1;
     const out = [];
     for (let i = 0; i < beats; i++) {
-        const beatSamples = Math.floor((60 / hr) * fs * (0.8 + Math.random() * 0.4));
+        const beatSamples = Math.floor((60 / hr) * fs * (0.6 + Math.random() * 0.8));
         const beat = normalBeat(beatSamples, Object.assign({}, opts, {withP:false}));
+        for(let j=0;j<beat.length;j++) beat[j]+= (Math.random()-0.5)*0.02;
         out.push(...beat);
     }
     return out;
@@ -220,6 +242,28 @@ function generatePvcWave(hr, opts={}) {
     return out;
 }
 
+function generateVTachWave(hr, opts={}) {
+    const options = Object.assign({withP:false, wideQRS:true}, opts);
+    return generateNormalWave(hr, options);
+}
+
+function generateAVDissociationWave(hr, opts={}) {
+    const pRate = opts.pRate || 80;
+    const vent = generateNormalWave(hr, Object.assign({}, opts, {withP:false, wideQRS:true}));
+    const pSamples = Math.floor((60/pRate)*fs);
+    const pBeat = pOnlyBeat(pSamples);
+    const pBeats = Math.ceil((duration * pRate)/60)+1;
+    const atrial=[];
+    for(let i=0;i<pBeats;i++) atrial.push(...pBeat);
+    const len=Math.max(vent.length, atrial.length);
+    const out=new Array(len).fill(0);
+    for(let i=0;i<len;i++){
+        if(i<vent.length) out[i]+=vent[i];
+        if(i<atrial.length) out[i]+=atrial[i];
+    }
+    return out;
+}
+
 function generateAsystoleWave() {
     return new Array(duration * fs).fill(0);
 }
@@ -230,6 +274,8 @@ const rhythmGenerators = {
     tachy: generateTachyWave,
     afib: generateAfibWave,
     pvc: generatePvcWave,
+    vtach: generateVTachWave,
+    avdissociation: generateAVDissociationWave,
     asystole: generateAsystoleWave
 };
 
@@ -239,6 +285,8 @@ const rhythmInfo = {
     tachy: 'Tachycardia: same pattern faster (100-180 bpm).',
     afib: 'Atrial Fibrillation: irregular rhythm with absent P waves.',
     pvc: 'PVC: occasional wide bizarre QRS after normal beats.',
+    vtach: 'Ventricular Tachycardia: no P waves and wide regular QRS.',
+    avdissociation: 'Complete Heart Block with independent atrial and ventricular rates.',
     asystole: 'Asystole: flatline with no electrical activity.'
 };
 
@@ -252,12 +300,21 @@ function applyLeadMods(arr, mod, hr){
     if(!mod) return arr;
     const beatSamples = Math.floor((60/hr)*fs);
     const out = arr.slice();
+    const qrsStart = Math.floor(0.25*beatSamples);
+    const qrsWidth = Math.floor(0.12*beatSamples);
     for(let i=0;i<out.length;i++){
         const pos = i % beatSamples;
         if(mod.stShift && pos>=0.32*beatSamples && pos<0.42*beatSamples)
             out[i]+=mod.stShift;
         if(mod.tHeight && pos>=0.45*beatSamples && pos<0.61*beatSamples)
             out[i]+=mod.tHeight;
+        if(mod.qrsMorph && pos>=qrsStart && pos<qrsStart+qrsWidth){
+            const d=(pos-qrsStart)/qrsWidth;
+            if(mod.qrsMorph==='rsR' && d>0.6 && d<0.8)
+                out[i]+=0.3*(1-Math.abs((d-0.7)/0.1));
+            if(mod.qrsMorph==='broad')
+                out[i]=0.5*out[i]+0.5*Math.sin(Math.PI*d);
+        }
     }
     return out;
 }

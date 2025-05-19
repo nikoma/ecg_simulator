@@ -60,28 +60,37 @@ case_scenarios = {
     },
     "Complete Heart Block": {
         "heartRate": 40,
-        "rhythm": "brady",
-        "extra": {"noP": True},
+        "rhythm": "avdissociation",
+        "extra": {"pRate": 80},
     },
     "Atrial Fibrillation": {"heartRate": 110, "rhythm": "afib"},
     "Ventricular Tachycardia": {
         "heartRate": 150,
-        "rhythm": "tachy",
-        "extra": {"wideQRS": True},
+        "rhythm": "vtach",
     },
     "Left Bundle Branch Block": {
         "heartRate": 90,
         "rhythm": "normal",
         "extra": {"wideQRS": True},
+        "leadModifications": {
+            "I": {"qrsMorph": "broad"},
+            "V5": {"qrsMorph": "broad"},
+            "V6": {"qrsMorph": "broad"},
+        },
     },
     "Right Bundle Branch Block": {
         "heartRate": 90,
         "rhythm": "normal",
         "extra": {"wideQRS": True},
+        "leadModifications": {
+            "V1": {"qrsMorph": "rsR"},
+            "V2": {"qrsMorph": "rsR"},
+        },
     },
     "Hyperkalemia ECG Pattern": {
         "heartRate": 70,
         "rhythm": "normal",
+        "extra": {"prDelay": 0.04, "wideQRS": True, "withP": False},
         "leadModifications": {"all": {"tHeight": 0.15}},
     },
     "Pericarditis": {
@@ -144,7 +153,7 @@ def generate_afib_wave(hr, opts=None, return_rr=False):
     waveform = []
     rr = []
     for _ in range(beats):
-        factor = 0.8 + 0.4 * random.random()
+        factor = 0.6 + 0.8 * random.random()
         beat_samples = int((60 / hr) * fs * factor)
         beat = normal_beat(
             beat_samples,
@@ -152,6 +161,8 @@ def generate_afib_wave(hr, opts=None, return_rr=False):
             wide_qrs=opts.get("wideQRS", False),
             pr_delay=opts.get("prDelay", 0.0),
         )
+        for i in range(len(beat)):
+            beat[i] += (random.random() - 0.5) * 0.02
         waveform.extend(beat)
         rr.append(beat_samples)
     return (waveform, rr) if return_rr else waveform
@@ -187,12 +198,47 @@ def generate_asystole_wave(hr=None, opts=None, return_rr=False):
     rr = []
     return (waveform, rr) if return_rr else waveform
 
+def generate_vtach_wave(hr, opts=None, return_rr=False):
+    opts = opts or {}
+    params = {"noP": True, "wideQRS": True}
+    params.update(opts)
+    return generate_normal_wave(hr, params, return_rr)
+
+def p_only_beat(samples):
+    beat = [0.0] * samples
+    for i in range(samples):
+        t = i / samples
+        if 0.1 <= t < 0.2:
+            phase = (t - 0.1) / 0.1
+            beat[i] += 0.15 * math.sin(math.pi * phase)
+    return beat
+
+def generate_avdissociation_wave(hr, opts=None, return_rr=False):
+    opts = opts or {}
+    p_rate = opts.get("pRate", 80)
+    vent = generate_normal_wave(hr, {"noP": True, "wideQRS": True})
+    p_samples = int((60 / p_rate) * fs)
+    p_wave = p_only_beat(p_samples)
+    p_beats = int((duration * p_rate) / 60) + 1
+    atrial = p_wave * p_beats
+    length = max(len(vent), len(atrial))
+    waveform = [0.0] * length
+    for i in range(length):
+        if i < len(vent):
+            waveform[i] += vent[i]
+        if i < len(atrial):
+            waveform[i] += atrial[i]
+    rr = []
+    return (waveform, rr) if return_rr else waveform
+
 rhythm_generators = {
     "normal": generate_normal_wave,
     "brady": generate_brady_wave,
     "tachy": generate_tachy_wave,
     "afib": generate_afib_wave,
     "pvc": generate_pvc_wave,
+    "vtach": generate_vtach_wave,
+    "avdissociation": generate_avdissociation_wave,
     "asystole": generate_asystole_wave,
 }
 
@@ -206,12 +252,20 @@ def apply_lead_mods(arr, mod, hr):
         return arr
     beat_samples = int((60 / hr) * fs)
     out = list(arr)
+    qrs_start = int(0.25 * beat_samples)
+    qrs_width = int(0.12 * beat_samples)
     for i in range(len(out)):
         pos = i % beat_samples
         if "stShift" in mod and 0.32 * beat_samples <= pos < 0.42 * beat_samples:
             out[i] += mod["stShift"]
         if "tHeight" in mod and 0.45 * beat_samples <= pos < 0.61 * beat_samples:
             out[i] += mod["tHeight"]
+        if "qrsMorph" in mod and qrs_start <= pos < qrs_start + qrs_width:
+            d = (pos - qrs_start) / qrs_width
+            if mod["qrsMorph"] == "rsR" and 0.6 < d < 0.8:
+                out[i] += 0.3 * (1 - abs(d - 0.7) / 0.1)
+            if mod["qrsMorph"] == "broad":
+                out[i] = 0.5 * out[i] + 0.5 * math.sin(math.pi * d)
     return out
 
 def analyze_case(name, cfg):
