@@ -19,6 +19,7 @@ const quizToggle = document.getElementById('quiz-toggle');
 const quizDiv = document.getElementById('quiz');
 const overlay = document.getElementById('overlay');
 const rhythmLabel = document.getElementById('rhythm-label');
+const darkToggle = document.getElementById('dark-toggle');
 
 let running = false;
 let showGrid = true;
@@ -135,24 +136,24 @@ function drawGrid() {
     }
 }
 
-function drawLabels(pos) {
+function drawLabels() {
     overlay.innerHTML = '';
-    if (!learning) return;
-    const beatSamples = Math.floor((60 / parseInt(hrSlider.value,10)) * fs);
-    const phase = pos % beatSamples;
-    const frac = phase / beatSamples;
+    if (!learning || running) return;
     const width = canvas.width;
-    function place(text,x){
-        const span=document.createElement('span');
-        span.textContent=text;
-        span.style.left=x+'px';
-        span.style.top='20px';
-        span.title=text;
+    const labels = [
+        { text: 'P', x: width * 0.25 },
+        { text: 'QRS', x: width * 0.5 },
+        { text: 'T', x: width * 0.75 }
+    ];
+    labels.forEach(l => {
+        const span = document.createElement('span');
+        span.textContent = l.text;
+        span.className = 'ecg-label';
+        span.style.left = l.x + 'px';
+        span.style.top = '20px';
         overlay.appendChild(span);
-    }
-    if(frac>=0.1&&frac<0.2) place('P wave',width*0.3);
-    else if(frac>=0.25&&frac<0.32) place('QRS complex',width*0.5);
-    else if(frac>=0.45&&frac<0.61) place('T wave',width*0.7);
+        requestAnimationFrame(() => span.classList.add('show'));
+    });
 }
 
 function drawWave() {
@@ -164,10 +165,11 @@ function drawWave() {
         const y = canvas.height/2 - v*100;
         if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
     });
-    ctx.strokeStyle = colorSelect.value === 'green' ? '#00aa00' : '#ff0000';
+    const colorMap = {red:'#ff0000', green:'#00aa00', blue:'#0000cc'};
+    ctx.strokeStyle = colorMap[colorSelect.value] || '#ff0000';
     ctx.lineWidth = 2;
     ctx.stroke();
-    drawLabels(pointer);
+    drawLabels();
 }
 
 function updateData() {
@@ -177,6 +179,7 @@ function updateData() {
     data = gen(hr);
     pointer = 0;
     info.textContent = rhythmInfo[currentRhythm];
+    drawWave();
 }
 
 // -------------------- Quiz Mode --------------------
@@ -221,11 +224,16 @@ function showQuizOptions(){
         if(!choice) return;
         const correct=choice.value===currentRhythm;
         quizResult={answer:choice.value,correct};
-        quizDiv.innerHTML = correct ? '✅ Correct!' : '❌ Incorrect. Correct answer: '+currentRhythm;
-        quizDiv.appendChild(document.createElement('br'));
+        quizDiv.innerHTML='';
+        const result=document.createElement('div');
+        result.className=correct?'feedback-correct':'feedback-wrong';
+        result.textContent=correct?'✅ Correct!':'❌ Incorrect! Correct: '+currentRhythm;
+        quizDiv.appendChild(result);
         const btn=document.createElement('button');
         btn.textContent='Try another';
+        btn.style.marginLeft='10px';
         btn.onclick=()=>{ quizDiv.innerHTML=''; startQuiz(); running=true; };
+        quizDiv.appendChild(document.createElement('br'));
         quizDiv.appendChild(btn);
     });
     quizDiv.appendChild(form);
@@ -244,8 +252,8 @@ function loop(){
 hrSlider.addEventListener('input',()=>{ hrValue.textContent=hrSlider.value; updateData(); });
 rhythmSelect.addEventListener('change',updateData);
 colorSelect.addEventListener('change',drawWave);
-startBtn.addEventListener('click',()=>{running=true;});
-pauseBtn.addEventListener('click',()=>{running=false;});
+startBtn.addEventListener('click',()=>{running=true; drawWave();});
+pauseBtn.addEventListener('click',()=>{running=false; drawWave();});
 resetBtn.addEventListener('click',()=>{pointer=0; drawWave();});
 exportBtn.addEventListener('click',()=>{
     const link=document.createElement('a');
@@ -279,6 +287,10 @@ quizToggle.addEventListener('change',()=>{
         rhythmSelect.style.display='inline';
         quizResult=null;
     }
+});
+
+darkToggle.addEventListener('change',()=>{
+    document.body.classList.toggle('dark', darkToggle.checked);
 });
 
 updateData();
