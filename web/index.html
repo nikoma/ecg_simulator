@@ -4,11 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ECG Simulator (Interactive Training Tool)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header>
-        <h1>ECG Simulator (Interactive Training Tool)</h1>
+        <div class="brand">
+            <span id="logo">🫀</span>
+            <h1>TerraMD SimLab: ECG Interactive Trainer</h1>
+        </div>
         <span id="lead-name">Lead II</span>
     </header>
     <div id="controls">
@@ -29,16 +33,18 @@
         <select id="color">
             <option value="red" selected>Red</option>
             <option value="green">Green</option>
+            <option value="blue">Blue</option>
         </select>
 
-        <button id="start">Start</button>
-        <button id="pause">Pause</button>
-        <button id="reset">Reset</button>
-        <button id="export">Export PNG</button>
+        <button id="start">▶️ Start</button>
+        <button id="pause">⏸ Pause</button>
+        <button id="reset">🔄 Reset</button>
+        <button id="export">📤 Export PNG</button>
         <button id="save">Save Session</button>
         <button id="grid-toggle">Toggle Grid</button>
         <label><input type="checkbox" id="learning"> Learning Mode</label>
         <label><input type="checkbox" id="quiz-toggle"> Quiz Mode</label>
+        <label><input type="checkbox" id="dark-toggle"> Dark Mode</label>
     </div>
 
     <div id="canvas-wrapper">
