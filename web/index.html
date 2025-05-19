@@ -41,6 +41,23 @@
         <label for="hr-slider">Heart Rate: <span id="hr-value">60</span> bpm</label>
         <input type="range" id="hr-slider" min="30" max="180" value="60">
 
+        <label for="case-select">📁 Case Scenario:</label>
+        <select id="case-select">
+            <option value="">-- Select Case --</option>
+            <option>Normal Sinus Rhythm</option>
+            <option>Inferior STEMI</option>
+            <option>Anterior STEMI</option>
+            <option>Lateral STEMI</option>
+            <option>First-Degree AV Block</option>
+            <option>Complete Heart Block</option>
+            <option>Atrial Fibrillation</option>
+            <option>Ventricular Tachycardia</option>
+            <option>Left Bundle Branch Block</option>
+            <option>Right Bundle Branch Block</option>
+            <option>Hyperkalemia ECG Pattern</option>
+            <option>Pericarditis</option>
+        </select>
+
         <label for="rhythm" id="rhythm-label">Rhythm Type:</label>
         <select id="rhythm">
             <option value="normal">Normal Sinus Rhythm</option>
@@ -76,6 +93,7 @@
     </div>
     <div id="grid-view" class="view hidden"></div>
     <div id="info"></div>
+    <div id="case-info"></div>
     <div id="quiz"></div>
     <div id="tips"></div>
 
