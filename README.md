@@ -111,3 +111,7 @@ PSD parameters: $f_1=.1$, $c_1=c_2=.01$, $f_2=.25$, LF/HF ratio $.5$
 RR tachgram for the above PSD with scaling for $RR$ mean $1.$ and $RR$ deviation equal to $.05$. The step plot shows the RR series that apply on the simulation.
 
 <img src="figs/rr.png" alt="drawing" width=""/>
+
+### JavaScript example
+
+A simplified JavaScript implementation is provided under `js/`. Open `js/index.html` in a browser to generate an example waveform using a small script that mimics the Python simulator.

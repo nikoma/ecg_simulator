@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ECG Simulator</title>
+<style>
+  canvas { width: 100%; height: 300px; border: 1px solid #ccc; }
+</style>
+</head>
+<body>
+<h1>ECG Simulator (JavaScript)</h1>
+<canvas id="ecg" width="800" height="300"></canvas>
+<script type="module">
+import { simulateECG, drawECG } from './ecg_simulator.js';
+const data = simulateECG({ fs: 256, hr: 60, duration: 10 });
+drawECG('ecg', data, 256);
+</script>
+</body>
+</html>
