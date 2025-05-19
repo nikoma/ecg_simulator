@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ECG Simulator (Interactive Training Tool)</title>
+    <title>Advanced 12-Lead ECG Simulator</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -11,11 +11,33 @@
     <header>
         <div class="brand">
             <span id="logo">🫀</span>
-            <h1>TerraMD SimLab: ECG Interactive Trainer</h1>
+            <h1>TerraMD SimLab – Advanced 12-Lead ECG Simulator</h1>
         </div>
         <span id="lead-name">Lead II</span>
     </header>
     <div id="controls">
+        <label for="view-mode">Lead View Mode:</label>
+        <select id="view-mode">
+            <option value="single" selected>Single Lead</option>
+            <option value="grid">12-Lead Grid</option>
+        </select>
+
+        <label for="lead-select" id="lead-label">Lead:</label>
+        <select id="lead-select">
+            <option value="I">I</option>
+            <option value="II" selected>II</option>
+            <option value="III">III</option>
+            <option value="aVR">aVR</option>
+            <option value="aVL">aVL</option>
+            <option value="aVF">aVF</option>
+            <option value="V1">V1</option>
+            <option value="V2">V2</option>
+            <option value="V3">V3</option>
+            <option value="V4">V4</option>
+            <option value="V5">V5</option>
+            <option value="V6">V6</option>
+        </select>
+
         <label for="hr-slider">Heart Rate: <span id="hr-value">60</span> bpm</label>
         <input type="range" id="hr-slider" min="30" max="180" value="60">
 
@@ -40,6 +62,7 @@
         <button id="pause">⏸ Pause</button>
         <button id="reset">🔄 Reset</button>
         <button id="export">📤 Export PNG</button>
+        <button id="export-data">Export Data</button>
         <button id="save">Save Session</button>
         <button id="grid-toggle">Toggle Grid</button>
         <label><input type="checkbox" id="learning"> Learning Mode</label>
@@ -47,10 +70,11 @@
         <label><input type="checkbox" id="dark-toggle"> Dark Mode</label>
     </div>
 
-    <div id="canvas-wrapper">
+    <div id="single-view" class="view">
         <canvas id="ecg-canvas" width="800" height="300"></canvas>
         <div id="overlay"></div>
     </div>
+    <div id="grid-view" class="view hidden"></div>
     <div id="info"></div>
     <div id="quiz"></div>
     <div id="tips"></div>
