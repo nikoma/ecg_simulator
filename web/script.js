@@ -41,6 +41,7 @@ const leads = ["I","II","III","aVR","aVL","aVF","V1","V2","V3","V4","V5","V6"];
 let baseData = [];
 let leadData = {};
 let currentCaseOptions = null;
+let animationId = null;
 
 // build grid canvases after DOM is ready
 leads.forEach(ld=>{
@@ -287,6 +288,8 @@ function loadCase(name){
         data = leadData[leadSelect.value];
     }
     caseInfo.textContent = cfg.notes || '';
+    running = false;
+    if(animationId) cancelAnimationFrame(animationId);
     drawWave();
 }
 
@@ -436,19 +439,26 @@ function showQuizOptions(){
 }
 
 // -------------------- Loop --------------------
-function loop(){
+function animate(){
     if(running){
         pointer = (pointer+2) % baseData.length;
         drawWave();
     }
-    requestAnimationFrame(loop);
+    animationId = requestAnimationFrame(animate);
+}
+
+function resetAndStartECG(){
+    if(animationId) cancelAnimationFrame(animationId);
+    pointer = 0;
+    running = true;
+    animate();
 }
 
 // -------------------- Controls --------------------
 hrSlider.addEventListener('input',()=>{ hrValue.textContent=hrSlider.value; updateData(currentCaseOptions); });
 rhythmSelect.addEventListener('change',()=>{ currentCaseOptions=null; updateData(); });
 colorSelect.addEventListener('change',drawWave);
-startBtn.addEventListener('click',()=>{running=true; drawWave();});
+startBtn.addEventListener('click',resetAndStartECG);
 pauseBtn.addEventListener('click',()=>{running=false; drawWave();});
 resetBtn.addEventListener('click',()=>{pointer=0; drawWave();});
 exportBtn.addEventListener('click',()=>{
@@ -536,4 +546,4 @@ leadSelect.addEventListener('change',()=>{
 });
 
 loadCase('Normal Sinus Rhythm');
-loop();
+animate();
