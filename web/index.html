@@ -14,7 +14,8 @@
     <div id="controls">
         <label for="hr-slider">Heart Rate: <span id="hr-value">60</span> bpm</label>
         <input type="range" id="hr-slider" min="30" max="180" value="60">
-        <label for="rhythm">Rhythm Type:</label>
+
+        <label for="rhythm" id="rhythm-label">Rhythm Type:</label>
         <select id="rhythm">
             <option value="normal">Normal Sinus Rhythm</option>
             <option value="brady">Bradycardia</option>
@@ -23,17 +24,33 @@
             <option value="pvc">Premature Ventricular Contraction (PVC)</option>
             <option value="asystole">Asystole (flatline)</option>
         </select>
+
+        <label for="color">Line Color:</label>
+        <select id="color">
+            <option value="red" selected>Red</option>
+            <option value="green">Green</option>
+        </select>
+
         <button id="start">Start</button>
         <button id="pause">Pause</button>
         <button id="reset">Reset</button>
-        <button id="export">Export as PNG</button>
+        <button id="export">Export PNG</button>
+        <button id="save">Save Session</button>
         <button id="grid-toggle">Toggle Grid</button>
         <label><input type="checkbox" id="learning"> Learning Mode</label>
+        <label><input type="checkbox" id="quiz-toggle"> Quiz Mode</label>
     </div>
-    <canvas id="ecg-canvas" width="800" height="300"></canvas>
+
+    <div id="canvas-wrapper">
+        <canvas id="ecg-canvas" width="800" height="300"></canvas>
+        <div id="overlay"></div>
+    </div>
+    <div id="info"></div>
+    <div id="quiz"></div>
     <div id="tips"></div>
+
     <footer>
-        <a href="ecg_simulator_web.zip" download>Download Simulator</a>
+        <a id="download" href="ecg_simulator_web.zip" download>Download Simulator</a>
     </footer>
     <script src="script.js"></script>
 </body>
