@@ -72,7 +72,37 @@ canvas {
     max-width: 100%;
 }
 
-#canvas-wrapper {
+.view {
+    width: 100%;
+    max-width: 900px;
+    margin-bottom: 10px;
+}
+
+.hidden { display: none; }
+
+#grid-view {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+.lead {
+    position: relative;
+}
+
+.lead-label {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    background: #fff;
+    padding: 2px 4px;
+    font-size: 0.8em;
+    border-radius: 4px;
+    font-weight: bold;
+    z-index: 5;
+}
+
+#single-view {
     position: relative;
     width: 100%;
     max-width: 800px;
@@ -162,7 +192,10 @@ body.dark button {
 body.dark button:hover {
     background: #555;
 }
-body.dark #canvas-wrapper {
+body.dark #single-view {
     background-image: linear-gradient(#555 1px, transparent 1px),
                       linear-gradient(90deg, #555 1px, transparent 1px);
+}
+body.dark #grid-view canvas {
+    background-color: #222;
 }

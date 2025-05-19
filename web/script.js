@@ -2,6 +2,11 @@
 
 const canvas = document.getElementById('ecg-canvas');
 const ctx = canvas.getContext('2d');
+const viewMode = document.getElementById('view-mode');
+const leadSelect = document.getElementById('lead-select');
+const gridView = document.getElementById('grid-view');
+const singleView = document.getElementById('single-view');
+const exportDataBtn = document.getElementById('export-data');
 const hrSlider = document.getElementById('hr-slider');
 const hrValue = document.getElementById('hr-value');
 const rhythmSelect = document.getElementById('rhythm');
@@ -21,6 +26,7 @@ const overlay = document.getElementById('overlay');
 const rhythmLabel = document.getElementById('rhythm-label');
 const darkToggle = document.getElementById('dark-toggle');
 
+
 let running = false;
 let showGrid = true;
 let learning = false;
@@ -29,9 +35,42 @@ let pointer = 0;
 let data = [];
 let currentRhythm = 'normal';
 let quizResult = null;
+const leads = ["I","II","III","aVR","aVL","aVF","V1","V2","V3","V4","V5","V6"];
+let baseData = [];
+let leadData = {};
+
+// build grid canvases after DOM is ready
+leads.forEach(ld=>{
+    const wrapper=document.createElement('div');
+    wrapper.className='lead';
+    const label=document.createElement('span');
+    label.className='lead-label';
+    label.textContent=ld;
+    const c=document.createElement('canvas');
+    c.width=250; c.height=150; c.className='lead-canvas';
+    c.dataset.lead=ld;
+    wrapper.appendChild(label);
+    wrapper.appendChild(c);
+    gridView.appendChild(wrapper);
+});
 
 const fs = 300; // sample rate
 const duration = 10; // seconds of data to generate
+
+const leadConfig = {
+    I:{amp:1},
+    II:{amp:1.1},
+    III:{amp:0.9},
+    aVR:{amp:0.7,invert:true},
+    aVL:{amp:0.7},
+    aVF:{amp:1},
+    V1:{amp:0.6,invert:true},
+    V2:{amp:0.8},
+    V3:{amp:1},
+    V4:{amp:1.1},
+    V5:{amp:1.2},
+    V6:{amp:1.1}
+};
 
 // -------------------- Waveform generation --------------------
 function normalBeat(samples, withP=true, wideQRS=false) {
@@ -115,24 +154,28 @@ const rhythmInfo = {
     asystole: 'Asystole: flatline with no electrical activity.'
 };
 
+function applyLead(base, cfg){
+    const amp = cfg.amp || 1;
+    const inv = cfg.invert ? -1 : 1;
+    return base.map(v => v * amp * inv);
+}
+
 // -------------------- Drawing helpers --------------------
-function drawGrid() {
-    const width = canvas.width;
-    const height = canvas.height;
-    ctx.strokeStyle = '#e0e0e0';
-    ctx.lineWidth = 1;
+function drawGrid(gctx, width, height) {
+    gctx.strokeStyle = '#e0e0e0';
+    gctx.lineWidth = 1;
     const grid = 25;
     for (let x = 0; x < width; x += grid) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, height);
-        ctx.stroke();
+        gctx.beginPath();
+        gctx.moveTo(x, 0);
+        gctx.lineTo(x, height);
+        gctx.stroke();
     }
     for (let y = 0; y < height; y += grid) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-        ctx.stroke();
+        gctx.beginPath();
+        gctx.moveTo(0, y);
+        gctx.lineTo(width, y);
+        gctx.stroke();
     }
 }
 
@@ -157,28 +200,51 @@ function drawLabels() {
 }
 
 function drawWave() {
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    if (showGrid) drawGrid();
-    const slice = data.slice(pointer, pointer + canvas.width);
-    ctx.beginPath();
-    slice.forEach((v,x)=>{
-        const y = canvas.height/2 - v*100;
-        if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-    });
-    const colorMap = {red:'#ff0000', green:'#00aa00', blue:'#0000cc'};
-    ctx.strokeStyle = colorMap[colorSelect.value] || '#ff0000';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    drawLabels();
+    if(viewMode.value === 'single'){
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        if (showGrid) drawGrid(ctx, canvas.width, canvas.height);
+        const slice = data.slice(pointer, pointer + canvas.width);
+        ctx.beginPath();
+        slice.forEach((v,x)=>{
+            const y = canvas.height/2 - v*100;
+            if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        });
+        const colorMap = {red:'#ff0000', green:'#00aa00', blue:'#0000cc'};
+        ctx.strokeStyle = colorMap[colorSelect.value] || '#ff0000';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        drawLabels();
+    } else {
+        document.querySelectorAll('.lead-canvas').forEach(cv=>{
+            const cctx = cv.getContext('2d');
+            cctx.clearRect(0,0,cv.width,cv.height);
+            if(showGrid) drawGrid(cctx, cv.width, cv.height);
+            const ld = leadData[cv.dataset.lead];
+            const slice = ld.slice(pointer, pointer + cv.width);
+            cctx.beginPath();
+            slice.forEach((v,x)=>{
+                const y = cv.height/2 - v*80;
+                if(x===0) cctx.moveTo(x,y); else cctx.lineTo(x,y);
+            });
+            const colorMap = {red:'#ff0000', green:'#00aa00', blue:'#0000cc'};
+            cctx.strokeStyle = colorMap[colorSelect.value] || '#ff0000';
+            cctx.lineWidth = 2;
+            cctx.stroke();
+        });
+    }
 }
 
 function updateData() {
     const hr = parseInt(hrSlider.value,10);
     currentRhythm = rhythmSelect.value;
     const gen = rhythmGenerators[currentRhythm];
-    data = gen(hr);
+    baseData = gen(hr);
+    leadData = {};
+    leads.forEach(l=>{ leadData[l] = applyLead(baseData, leadConfig[l]||{}); });
+    data = leadData[leadSelect.value];
     pointer = 0;
     info.textContent = rhythmInfo[currentRhythm];
+    document.getElementById('lead-name').textContent='Lead '+leadSelect.value;
     drawWave();
 }
 
@@ -242,7 +308,7 @@ function showQuizOptions(){
 // -------------------- Loop --------------------
 function loop(){
     if(running){
-        pointer = (pointer+2) % data.length;
+        pointer = (pointer+2) % baseData.length;
         drawWave();
     }
     requestAnimationFrame(loop);
@@ -256,10 +322,25 @@ startBtn.addEventListener('click',()=>{running=true; drawWave();});
 pauseBtn.addEventListener('click',()=>{running=false; drawWave();});
 resetBtn.addEventListener('click',()=>{pointer=0; drawWave();});
 exportBtn.addEventListener('click',()=>{
-    const link=document.createElement('a');
-    link.download='ecg.png';
-    link.href=canvas.toDataURL();
-    link.click();
+    if(viewMode.value==='single'){
+        const link=document.createElement('a');
+        link.download=`lead_${leadSelect.value}.png`;
+        link.href=canvas.toDataURL();
+        link.click();
+    } else {
+        const off=document.createElement('canvas');
+        const w=250, h=150;
+        off.width=3*w; off.height=4*h;
+        const octx=off.getContext('2d');
+        document.querySelectorAll('.lead-canvas').forEach((cv,i)=>{
+            const x=(i%3)*w, y=Math.floor(i/3)*h;
+            octx.drawImage(cv,x,y);
+        });
+        const link=document.createElement('a');
+        link.download='ecg_grid.png';
+        link.href=off.toDataURL();
+        link.click();
+    }
 });
 saveBtn.addEventListener('click',()=>{
     const dataObj={
@@ -271,6 +352,19 @@ saveBtn.addEventListener('click',()=>{
     const blob=new Blob([JSON.stringify(dataObj,null,2)],{type:'application/json'});
     const link=document.createElement('a');
     link.download='session.json';
+    link.href=URL.createObjectURL(blob);
+    link.click();
+});
+
+exportDataBtn.addEventListener('click',()=>{
+    const payload={
+        rhythm:currentRhythm,
+        heartRate:hrSlider.value,
+        leads:leadData
+    };
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+    const link=document.createElement('a');
+    link.download='waveform.json';
     link.href=URL.createObjectURL(blob);
     link.click();
 });
@@ -291,6 +385,23 @@ quizToggle.addEventListener('change',()=>{
 
 darkToggle.addEventListener('change',()=>{
     document.body.classList.toggle('dark', darkToggle.checked);
+});
+
+viewMode.addEventListener('change',()=>{
+    if(viewMode.value==='single'){
+        gridView.classList.add('hidden');
+        singleView.classList.remove('hidden');
+    }else{
+        singleView.classList.add('hidden');
+        gridView.classList.remove('hidden');
+    }
+    drawWave();
+});
+
+leadSelect.addEventListener('change',()=>{
+    data = leadData[leadSelect.value];
+    document.getElementById('lead-name').textContent='Lead '+leadSelect.value;
+    drawWave();
 });
 
 updateData();
