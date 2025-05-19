@@ -25,6 +25,8 @@ const quizDiv = document.getElementById('quiz');
 const overlay = document.getElementById('overlay');
 const rhythmLabel = document.getElementById('rhythm-label');
 const darkToggle = document.getElementById('dark-toggle');
+const caseSelect = document.getElementById('case-select');
+const caseInfo = document.getElementById('case-info');
 
 
 let running = false;
@@ -38,6 +40,7 @@ let quizResult = null;
 const leads = ["I","II","III","aVR","aVL","aVF","V1","V2","V3","V4","V5","V6"];
 let baseData = [];
 let leadData = {};
+let currentCaseOptions = null;
 
 // build grid canvases after DOM is ready
 leads.forEach(ld=>{
@@ -72,9 +75,93 @@ const leadConfig = {
     V6:{amp:1.1}
 };
 
+const caseScenarios = {
+    "Normal Sinus Rhythm": {
+        heartRate: 60,
+        rhythm: "normal",
+        leadModifications: {},
+        notes: "Normal sinus rhythm."
+    },
+    "Inferior STEMI": {
+        heartRate: 80,
+        rhythm: "normal",
+        leadModifications: {
+            II:{stShift:0.2},
+            III:{stShift:0.2},
+            aVF:{stShift:0.2},
+            aVL:{stShift:-0.1}
+        },
+        notes: "ST elevation in II, III, aVF; reciprocal changes in aVL."
+    },
+    "Anterior STEMI": {
+        heartRate: 90,
+        rhythm: "normal",
+        leadModifications: {V1:{stShift:0.2},V2:{stShift:0.2},V3:{stShift:0.2},V4:{stShift:0.2}},
+        notes: "ST elevation in V1-V4 suggests LAD occlusion."
+    },
+    "Lateral STEMI": {
+        heartRate: 80,
+        rhythm: "normal",
+        leadModifications: {I:{stShift:0.2},aVL:{stShift:0.2},V5:{stShift:0.2},V6:{stShift:0.2}},
+        notes: "ST elevation in I, aVL, V5, V6."
+    },
+    "First-Degree AV Block": {
+        heartRate: 70,
+        rhythm: "normal",
+        extra:{prDelay:0.05},
+        notes: "PR interval >200ms on all leads."
+    },
+    "Complete Heart Block": {
+        heartRate: 40,
+        rhythm: "brady",
+        extra:{noP:true},
+        notes: "AV dissociation with slow ventricular escape rhythm."
+    },
+    "Atrial Fibrillation": {
+        heartRate: 110,
+        rhythm: "afib",
+        notes: "Irregularly irregular rhythm with absent P waves."
+    },
+    "Ventricular Tachycardia": {
+        heartRate: 150,
+        rhythm: "tachy",
+        extra:{wideQRS:true},
+        notes: "Fast wide-complex rhythm."
+    },
+    "Left Bundle Branch Block": {
+        heartRate: 90,
+        rhythm: "normal",
+        extra:{wideQRS:true},
+        notes: "Wide QRS pattern best in I, V6."
+    },
+    "Right Bundle Branch Block": {
+        heartRate: 90,
+        rhythm: "normal",
+        extra:{wideQRS:true},
+        notes: "Wide QRS with rSR' in V1-V3."
+    },
+    "Hyperkalemia ECG Pattern": {
+        heartRate: 70,
+        rhythm: "normal",
+        leadModifications:{all:{tHeight:0.15}},
+        notes: "Tall peaked T waves due to hyperkalemia."
+    },
+    "Pericarditis": {
+        heartRate: 75,
+        rhythm: "normal",
+        leadModifications:{all:{stShift:0.1}},
+        notes: "Diffuse concave ST elevation."
+    }
+};
+
 // -------------------- Waveform generation --------------------
-function normalBeat(samples, withP=true, wideQRS=false) {
+function normalBeat(samples, opts={}) {
+    const withP = opts.withP !== false;
+    const wideQRS = !!opts.wideQRS;
+    const prDelay = opts.prDelay || 0;
     const beat = new Array(samples).fill(0);
+    const qrsStart = 0.25 + prDelay;
+    const tStart = 0.45 + prDelay;
     for (let i = 0; i < samples; i++) {
         const t = i / samples; // 0-1
         let v = 0;
@@ -82,14 +169,14 @@ function normalBeat(samples, withP=true, wideQRS=false) {
             const phase = (t - 0.1) / 0.1;
             v += 0.15 * Math.sin(Math.PI * phase);
         }
-        if (t >= 0.25 && t < 0.25 + (wideQRS ? 0.12 : 0.07)) {
-            const d = (t - 0.25) / (wideQRS ? 0.12 : 0.07);
+        if (t >= qrsStart && t < qrsStart + (wideQRS ? 0.12 : 0.07)) {
+            const d = (t - qrsStart) / (wideQRS ? 0.12 : 0.07);
             if (d < 0.3) v -= 0.2 * (d / 0.3);
             else if (d < 0.5) v += (1 - d) * 1.2;
             else if (d < 0.7) v -= 0.4 * ((d - 0.5) / 0.2);
         }
-        if (t >= 0.45 && t < 0.61) {
-            const phase = (t - 0.45) / 0.16;
+        if (t >= tStart && t < tStart + 0.16) {
+            const phase = (t - tStart) / 0.16;
             v += 0.1 * Math.sin(Math.PI * phase);
         }
         beat[i] = v;
@@ -97,37 +184,37 @@ function normalBeat(samples, withP=true, wideQRS=false) {
     return beat;
 }
 
-function generateNormalWave(hr) {
+function generateNormalWave(hr, opts={}) {
     const beatSamples = Math.floor((60 / hr) * fs);
-    const beat = normalBeat(beatSamples);
+    const beat = normalBeat(beatSamples, opts);
     const beats = Math.ceil((duration * hr) / 60) + 1;
     const out = [];
     for (let i = 0; i < beats; i++) out.push(...beat);
     return out;
 }
 
-function generateBradyWave(hr) { return generateNormalWave(hr); }
-function generateTachyWave(hr) { return generateNormalWave(hr); }
+function generateBradyWave(hr, opts={}) { return generateNormalWave(hr, opts); }
+function generateTachyWave(hr, opts={}) { return generateNormalWave(hr, opts); }
 
-function generateAfibWave(hr) {
+function generateAfibWave(hr, opts={}) {
     const beats = Math.ceil((duration * hr) / 60) + 1;
     const out = [];
     for (let i = 0; i < beats; i++) {
         const beatSamples = Math.floor((60 / hr) * fs * (0.8 + Math.random() * 0.4));
-        const beat = normalBeat(beatSamples, false);
+        const beat = normalBeat(beatSamples, Object.assign({}, opts, {withP:false}));
         out.push(...beat);
     }
     return out;
 }
 
-function generatePvcWave(hr) {
+function generatePvcWave(hr, opts={}) {
     const beatSamples = Math.floor((60 / hr) * fs);
     const beats = Math.ceil((duration * hr) / 60) + 1;
     const out = [];
     const pvcIndex = 3 + Math.floor(Math.random() * 3); // after 3-5 beats
     for (let i = 0; i < beats; i++) {
-        if (i === pvcIndex) out.push(...normalBeat(beatSamples, false, true));
-        else out.push(...normalBeat(beatSamples));
+        if (i === pvcIndex) out.push(...normalBeat(beatSamples, Object.assign({}, opts, {withP:false, wideQRS:true})));
+        else out.push(...normalBeat(beatSamples, opts));
     }
     return out;
 }
@@ -158,6 +245,49 @@ function applyLead(base, cfg){
     const amp = cfg.amp || 1;
     const inv = cfg.invert ? -1 : 1;
     return base.map(v => v * amp * inv);
+}
+
+function applyLeadMods(arr, mod, hr){
+    if(!mod) return arr;
+    const beatSamples = Math.floor((60/hr)*fs);
+    const out = arr.slice();
+    for(let i=0;i<out.length;i++){
+        const pos = i % beatSamples;
+        if(mod.stShift && pos>=0.32*beatSamples && pos<0.42*beatSamples)
+            out[i]+=mod.stShift;
+        if(mod.tHeight && pos>=0.45*beatSamples && pos<0.61*beatSamples)
+            out[i]+=mod.tHeight;
+    }
+    return out;
+}
+
+function loadCase(name){
+    const cfg = caseScenarios[name];
+    if(!cfg) return;
+    caseSelect.value = name;
+    if(cfg.heartRate){
+        hrSlider.value = cfg.heartRate;
+        hrValue.textContent = cfg.heartRate;
+    }
+    if(cfg.rhythm){
+        rhythmSelect.value = cfg.rhythm;
+    }
+    currentCaseOptions = cfg.extra || null;
+    updateData(currentCaseOptions);
+    const hr = parseInt(hrSlider.value,10);
+    if(cfg.leadModifications){
+        Object.keys(cfg.leadModifications).forEach(ld=>{
+            const mod = cfg.leadModifications[ld];
+            if(ld==='all'){
+                leads.forEach(l=>{ leadData[l] = applyLeadMods(leadData[l], mod, hr); });
+            } else if(leadData[ld]){
+                leadData[ld] = applyLeadMods(leadData[ld], mod, hr);
+            }
+        });
+        data = leadData[leadSelect.value];
+    }
+    caseInfo.textContent = cfg.notes || '';
+    drawWave();
 }
 
 // -------------------- Drawing helpers --------------------
@@ -234,11 +364,11 @@ function drawWave() {
     }
 }
 
-function updateData() {
+function updateData(opts={}) {
     const hr = parseInt(hrSlider.value,10);
     currentRhythm = rhythmSelect.value;
     const gen = rhythmGenerators[currentRhythm];
-    baseData = gen(hr);
+    baseData = gen(hr, opts);
     leadData = {};
     leads.forEach(l=>{ leadData[l] = applyLead(baseData, leadConfig[l]||{}); });
     data = leadData[leadSelect.value];
@@ -315,8 +445,8 @@ function loop(){
 }
 
 // -------------------- Controls --------------------
-hrSlider.addEventListener('input',()=>{ hrValue.textContent=hrSlider.value; updateData(); });
-rhythmSelect.addEventListener('change',updateData);
+hrSlider.addEventListener('input',()=>{ hrValue.textContent=hrSlider.value; updateData(currentCaseOptions); });
+rhythmSelect.addEventListener('change',()=>{ currentCaseOptions=null; updateData(); });
 colorSelect.addEventListener('change',drawWave);
 startBtn.addEventListener('click',()=>{running=true; drawWave();});
 pauseBtn.addEventListener('click',()=>{running=false; drawWave();});
@@ -382,6 +512,7 @@ quizToggle.addEventListener('change',()=>{
         quizResult=null;
     }
 });
+caseSelect.addEventListener('change',()=>{ loadCase(caseSelect.value); });
 
 darkToggle.addEventListener('change',()=>{
     document.body.classList.toggle('dark', darkToggle.checked);
@@ -404,5 +535,5 @@ leadSelect.addEventListener('change',()=>{
     drawWave();
 });
 
-updateData();
+loadCase('Normal Sinus Rhythm');
 loop();

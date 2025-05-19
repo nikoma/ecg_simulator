@@ -150,6 +150,13 @@ footer {
     text-align: center;
     max-width: 800px;
 }
+#case-info {
+    margin-top: 8px;
+    font-size: 0.9em;
+    text-align: center;
+    max-width: 800px;
+    font-style: italic;
+}
 
 #quiz {
     margin-top: 10px;
