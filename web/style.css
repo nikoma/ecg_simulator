@@ -1,0 +1,39 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #f4f4f4;
+}
+header {
+    text-align: center;
+    margin-top: 20px;
+    position: relative;
+}
+#lead-name {
+    position: absolute;
+    right: 10px;
+    top: 0;
+    font-size: 0.9em;
+}
+#controls {
+    margin: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+}
+canvas {
+    border: 1px solid #ccc;
+    max-width: 90vw;
+}
+footer {
+    margin: 20px;
+}
+#tips {
+    margin-top: 10px;
+    min-height: 1.5em;
+    color: #333;
+}

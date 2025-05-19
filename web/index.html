@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECG Simulator (Interactive Training Tool)</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>ECG Simulator (Interactive Training Tool)</h1>
+        <span id="lead-name">Lead II</span>
+    </header>
+    <div id="controls">
+        <label for="hr-slider">Heart Rate: <span id="hr-value">60</span> bpm</label>
+        <input type="range" id="hr-slider" min="30" max="180" value="60">
+        <label for="rhythm">Rhythm Type:</label>
+        <select id="rhythm">
+            <option value="normal">Normal Sinus Rhythm</option>
+            <option value="brady">Bradycardia</option>
+            <option value="tachy">Tachycardia</option>
+            <option value="afib">Atrial Fibrillation (A-Fib)</option>
+            <option value="pvc">Premature Ventricular Contraction (PVC)</option>
+            <option value="asystole">Asystole (flatline)</option>
+        </select>
+        <button id="start">Start</button>
+        <button id="pause">Pause</button>
+        <button id="reset">Reset</button>
+        <button id="export">Export as PNG</button>
+        <button id="grid-toggle">Toggle Grid</button>
+        <label><input type="checkbox" id="learning"> Learning Mode</label>
+    </div>
+    <canvas id="ecg-canvas" width="800" height="300"></canvas>
+    <div id="tips"></div>
+    <footer>
+        <a href="ecg_simulator_web.zip" download>Download Simulator</a>
+    </footer>
+    <script src="script.js"></script>
+</body>
+</html>
