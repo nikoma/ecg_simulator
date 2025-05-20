@@ -1,18 +1,21 @@
 // Simple ECG simulator for browser
 // This is a simplified JavaScript implementation inspired by the Python version
 // It generates a synthetic ECG using a sum of Gaussian functions for each wave.
+// Wave definitions are loaded from an external JSON file so that patterns can be
+// edited without touching this script.
+
+import wavePatterns from './wave_patterns.json' assert { type: 'json' };
 
 function simulateECG({
     fs = 256,            // sampling frequency
     hr = 60,             // mean heart rate (bpm)
-    duration = 10        // total time in seconds
+    duration = 10,       // total time in seconds
+    patterns = wavePatterns // optional custom wave patterns
 } = {}) {
     const dt = 1 / fs;
     const N = Math.floor(duration * fs);
-    // Wave parameters (approximate values)
-    const Ti = [ -Math.PI / 3, -Math.PI / 12, 0, Math.PI / 12, Math.PI / 2 ];
-    const ai = [ 1.2, -5.0, 30.0, -7.5, 0.75 ];
-    const bi = [ 0.25, 0.1, 0.1, 0.1, 0.4 ];
+    // Wave parameters loaded from JSON
+    const { Ti, ai, bi } = patterns;
 
     let theta = 0;
     let z = 0;
