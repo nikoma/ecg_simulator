@@ -603,4 +603,4 @@ leadSelect.addEventListener('change',()=>{
 });
 
 loadCase('Normal Sinus Rhythm');
-animate();
+resetAndStartECG();
